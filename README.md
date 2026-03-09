@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="banner.png" alt="TCG Vendor Banner" width="800px">
+  <img src="https://raw.githubusercontent.com/lightninjay/mod-tcg-vendors/refs/heads/main/banner.png" alt="TCG Vendor Banner" width="800px">
   <H1><b>TCG Vendors</b></H1><H3>Author: lightninjay<br>with the help of Claude.ai</H3><br>
 
 An [AzerothCore](https://www.azerothcore.org/) module that implements fully functional item
