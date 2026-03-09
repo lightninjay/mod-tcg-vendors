@@ -1,7 +1,9 @@
-# mod-tcg-vendors
+<div align="center">
+  <H1><b>TCG Vendors</b></H1><br>
+  <img src="banner.png" alt="TCG Vendor Banner" width="800px">
 
 An [AzerothCore](https://www.azerothcore.org/) module that implements fully functional item
-redemption for five World of Warcraft promotional item NPCs present in the 3.3.5a client.
+redemption<br> for five World of Warcraft promotional item NPCs present in the 3.3.5a client.
 
 | NPC | Location | Items |
 |-----|----------|-------|
@@ -21,57 +23,6 @@ redemption modes, correct item entry IDs, and a full GM delivery and management 
 > [mod-playerbots fork](https://github.com/liyunfan1223/azerothcore-wotlk) of AzerothCore.
 > Should be compatible with standard AzerothCore mainline. See
 > [Compatibility](#compatibility) for details.
-
----
-
-## Features
-
-- **Four configurable operation modes** covering every server style, from fully free to
-  retail-authentic code redemption.
-- **74 reward items** spanning all 13 TCG expansion sets, three Blizzcon promotional items,
-  and the full Garel/Tharl promotional catalogue.
-- **Multi-item set support** — Spectral Tiger and X-51 Nether-Rocket each award both mount
-  variants in a single redemption.
-- **Faction-aware delivery** — the Scourgewar Mini-Mount awards the Horde or Alliance variant
-  automatically based on the receiving character's race.
-- **Unique vs. consumable item classification** — permanent unlocks are one-time per
-  character; charged or stackable toys are unlimited.
-- **Companion-gated items** — Red War Fuel and Blue War Fuel are freely redeemable in any
-  mode, any number of times, but only to characters who have already learned the Warbot
-  companion (spell 65682).
-- **Inventory fallback** — if a player's bags are full at redemption, all items are mailed
-  to the character rather than being blocked or lost.
-- **GM free-browse menu** in all modes (including Disabled), allowing Game Masters with GM
-  mode active to browse the full catalogue and deliver any item to any character by name.
-- **GM force-delivery override** — if a target character has already received a unique item,
-  the GM is presented with an override confirmation dialog rather than a silent block.
-- **GM redemption flag management** — a dedicated menu option clears all
-  `character_tcg_redeemed` records for a named character, resetting their unique-item
-  eligibility.
-- **Configurable Landro's Box behaviour** — Landro's Gift Box and Landro's Pet Box can be
-  set to one-time or unlimited per character independently of all other items.
-- **Crash-safe code redemption** — codes are marked used before item delivery so a partial
-  delivery on server crash cannot be replayed.
-- **Interactive code generator dashboard** (`tools/generate_codes.py`) with a terminal UI
-  and full non-interactive CLI support for scripted workflows.
-
----
-
-## Operation Modes
-
-Set via `TCGVendors.Mode` in `mod-tcg-vendors.conf`.
-
-| Mode | Name | Description |
-|------|------|-------------|
-| `0` | **Disabled** | Module registers but defers entirely to default database gossip. No items are offered by the scripts. Useful for temporarily suspending the system without reverting any SQL. |
-| `1` | **Free** | No codes required. All players browse the full catalogue and claim items directly from the gossip menu. Unique items are one-time per character; consumables are unlimited. |
-| `2` | **Blizz-like** *(default)* | Players enter a pre-generated `XXXX-XXXX-XXXX-XXXX` code at the NPC root dialog. Each code is single-use, tracked at account level. The reward is determined entirely by the code — the player does not browse to an item first. Blizzcon vendors show items directly with per-item code dialogs in this mode. |
-| `3` | **Item-Specific Code** | Players browse to a specific item and enter a code for that item. A valid code for a *different* item produces a mismatch error. Closest to the original retail experience. |
-
-> **Note on companion-gated items (War Fuel):** Red War Fuel and Blue War Fuel bypass the
-> mode setting entirely. They are always presented as a free confirmation click — no code is
-> ever generated or required. The only gate is whether the character has already learned the
-> Warbot companion pet.
 
 ---
 
@@ -168,7 +119,7 @@ Set via `TCGVendors.Mode` in `mod-tcg-vendors.conf`.
 | Netherwhelp's Collar | 25535 | Unique | TBC Collector's Edition |
 | Frosty's Collar | 39286 | Unique | WotLK Collector's Edition |
 | Tyrael's Hilt | 39656 | Unique | Blizzard promotional |
-| Warbot Ignition Key | 46767 | Unique | |
+| Warbot Ignition Key | 46767 | Unique | Mountain Dew Promotion |
 | Red War Fuel | 46766 | Consumable | Requires Warbot companion (spell 65682) |
 | Blue War Fuel | 46765 | Consumable | Requires Warbot companion (spell 65682) |
 
@@ -201,6 +152,57 @@ Set via `TCGVendors.Mode` in `mod-tcg-vendors.conf`.
 | Onyxian Whelpling | 49362 | Unique |
 
 </details>
+
+---
+
+## Features
+
+- **Four configurable operation modes** covering every server style, from fully free to
+  retail-authentic code redemption.
+- **74 reward items** spanning all 13 TCG expansion sets, three Blizzcon promotional items,
+  and the full Garel/Tharl promotional catalogue.
+- **Multi-item set support** — Spectral Tiger and X-51 Nether-Rocket each award both mount
+  variants in a single redemption.
+- **Faction-aware delivery** — the Scourgewar Mini-Mount awards the Horde or Alliance variant
+  automatically based on the receiving character's race.
+- **Unique vs. consumable item classification** — permanent unlocks are one-time per
+  character; charged or stackable toys are unlimited.
+- **Companion-gated items** — Red War Fuel and Blue War Fuel are freely redeemable in any
+  mode, any number of times, but only to characters who have already learned the Warbot
+  companion (spell 65682).
+- **Inventory fallback** — if a player's bags are full at redemption, all items are mailed
+  to the character rather than being blocked or lost.
+- **GM free-browse menu** in all modes (including Disabled), allowing Game Masters with GM
+  mode active to browse the full catalogue and deliver any item to any character by name.
+- **GM force-delivery override** — if a target character has already received a unique item,
+  the GM is presented with an override confirmation dialog rather than a silent block.
+- **GM redemption flag management** — a dedicated menu option clears all
+  `character_tcg_redeemed` records for a named character, resetting their unique-item
+  eligibility.
+- **Configurable Landro's Box behaviour** — Landro's Gift Box and Landro's Pet Box can be
+  set to one-time or unlimited per character independently of all other items.
+- **Crash-safe code redemption** — codes are marked used before item delivery so a partial
+  delivery on server crash cannot be replayed.
+- **Interactive code generator dashboard** (`tools/generate_codes.py`) with a terminal UI
+  and full non-interactive CLI support for scripted workflows.
+
+---
+
+## Operation Modes
+
+Set via `TCGVendors.Mode` in `mod-tcg-vendors.conf`.
+
+| Mode | Name | Description |
+|------|------|-------------|
+| `0` | **Disabled** | Module registers but defers entirely to default database gossip. No items are offered by the scripts. Useful for temporarily suspending the system without reverting any SQL. |
+| `1` | **Free** | No codes required. All players browse the full catalogue and claim items directly from the gossip menu. Unique items are one-time per character; consumables are unlimited. |
+| `2` | **Blizz-like** *(default)* | Players enter a pre-generated `XXXX-XXXX-XXXX-XXXX` code at the NPC root dialog. Each code is single-use, tracked at account level. The reward is determined entirely by the code — the player does not browse to an item first. Blizzcon vendors show items directly with per-item code dialogs in this mode. |
+| `3` | **Item-Specific Code** | Players browse to a specific item and enter a code for that item. A valid code for a *different* item produces a mismatch error. Closest to the original retail experience. |
+
+> **Note on companion-gated items (War Fuel):** Red War Fuel and Blue War Fuel bypass the
+> mode setting entirely. They are always presented as a free confirmation click — no code is
+> ever generated or required. The only gate is whether the character has already learned the
+> Warbot companion pet.
 
 ---
 
@@ -490,3 +492,5 @@ This module is released under the [MIT License](LICENSE).
 *AzerothCore: [repository](https://github.com/azerothcore/azerothcore-wotlk) •
 [website](https://www.azerothcore.org/) •
 [Discord](https://discord.gg/gkt4y2x)*
+
+</div>
