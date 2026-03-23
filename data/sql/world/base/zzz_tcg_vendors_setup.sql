@@ -66,6 +66,15 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`) VALUES
     ''
 );
 
+--  Edward Cairn (Horde, Undercity) and Ian Drake (Alliance, Stormwind)
+DELETE FROM `npc_text` WHERE `ID` = 90004;
+INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`) VALUES
+(
+    90004,
+    'Greetings, $N. I trust that you bring me good news concerning the Worldwide Invitational event? If you are, then surely that means you were given a secret code to tell me. In return for your code I will give you a gift, Tyrael''s Hilt.$B$BJust whisper it in my ear when you are ready.',
+    ''
+);
+
 -- ============================================================
 --  Assign script names
 -- ============================================================
@@ -81,9 +90,13 @@ UPDATE `creature_template`
     SET `ScriptName` = 'npc_promo_vendor'
     WHERE `entry` IN (16070, 16076);
 
+UPDATE `creature_template`
+    SET `ScriptName` = 'npc_tyraels_vendor'
+    WHERE `entry` IN (29095, 29093);
+
 -- ============================================================
 --  Ensure NPCs have the gossip NPC flag set  (bit 1 = 0x1)
 -- ============================================================
 UPDATE `creature_template`
     SET `npcflag` = `npcflag` | 1
-    WHERE `entry` IN (17249, 2943, 7951, 16070, 16076);
+    WHERE `entry` IN (17249, 2943, 7951, 16070, 16076, 29095, 29093);

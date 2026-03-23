@@ -40,6 +40,8 @@ enum TCGNPCEntries : uint32
     NPC_ZAS_TYSH             = 7951,
     NPC_THARL_STONEBLEEDER   = 16076,
     NPC_GAREL_REDROCK        = 16070,
+    NPC_EDWARD_CAIRN         = 29095,
+    NPC_IAN_DRAKE            = 29093,
 };
 
 // ============================================================
@@ -49,7 +51,8 @@ enum TCGNpcTextIds : uint32
 {
     NPC_TEXT_LANDRO   = 90001,
     NPC_TEXT_BLIZZCON = 90002,
-    NPC_TEXT_PROMO    = 90003,
+    NPC_TEXT_PROMO    = 90003,   // Garel Redrock / Tharl Stonebleeder
+    NPC_TEXT_WWI      = 90004,   // Edward Cairn / Ian Drake (Worldwide Invitational)
 };
 
 // ============================================================
@@ -236,7 +239,7 @@ static const std::map<std::string, RewardGroup> REWARD_GROUPS =
     { "PROMO_DIABLO_STONE",      { "Diablo Stone",              { 13584 }        } },
     { "PROMO_NETHERWHELP",       { "Netherwhelp's Collar",      { 25535 }        } },
     { "PROMO_FROSTYS_COLLAR",    { "Frosty's Collar",           { 39286 }        } },
-    { "PROMO_TYRAELS_HILT",      { "Tyrael's Hilt",             { 39656 }        } },
+    { "WWI_TYRAELS_HILT",      { "Tyrael's Hilt",             { 39656 }        } },
     { "PROMO_WARBOT_KEY",        { "Warbot Ignition Key",       { 46767 }        } },
 
     // --- Blizzard Store ---
@@ -351,6 +354,17 @@ static const std::map<uint32, std::string> EXPANSION_NAMES =
     { SENDER_PR,   "Points Redemption"        },
 };
 
+// ============================================================
+//  Worldwide Invitational catalog  (Edward Cairn / Ian Drake)
+//
+//  These two vendors handle Tyrael's Hilt exclusively — the reward
+//  granted at the 2008 Worldwide Invitational event in Paris.
+// ============================================================
+static const std::vector<TCGItem> TYRAELS_CATALOG =
+{
+    { "Tyrael's Hilt", { 39656 }, false, false, "WWI_TYRAELS_HILT" },
+};
+
 static const std::map<uint32, std::string> PROMO_CATEGORY_NAMES =
 {
     { SENDER_PROMO_MURLOC,  "Murloc Companions"             },
@@ -387,7 +401,6 @@ static const std::map<uint32, std::vector<TCGItem>> PROMO_CATALOG =
         { "Diablo Stone",              { 13584 }, false, false, "PROMO_DIABLO_STONE"       },
         { "Netherwhelp's Collar",      { 25535 }, false, false, "PROMO_NETHERWHELP"        },
         { "Frosty's Collar",           { 39286 }, false, false, "PROMO_FROSTYS_COLLAR"     },
-        { "Tyrael's Hilt",             { 39656 }, false, false, "PROMO_TYRAELS_HILT"       },
         { "Warbot Ignition Key",        { 46767 }, false, false, "PROMO_WARBOT_KEY"         },
         { "Red War Fuel",              { 46766 }, false, true,  "PROMO_RED_WAR_FUEL",  WARBOT_PET_SPELL },
         { "Blue War Fuel",             { 46765 }, false, true,  "PROMO_BLUE_WAR_FUEL", WARBOT_PET_SPELL },
@@ -474,6 +487,12 @@ static std::string GetVendorForItem(uint32 itemId)
             for (uint32 e : tcgItem.entries)
                 if (e == itemId)
                     return "Garel Redrock in Ironforge (Alliance) or Tharl Stonebleeder in Orgrimmar (Horde)";
+
+    // WorldWide Invitational — Ian Drake (Alliance) / Edward Cairn (Horde)
+    for (auto const& tcgItem : TYRAELS_CATALOG)
+        for (uint32 e : tcgItem.entries)
+            if (e == itemId)
+                return "Ian Drake in Stormwind (Alliance) or Edward Cairn in Undercity (Horde)";
 
     // Fallback — should not be reached for any configured item
     LOG_WARN("module",
@@ -1634,6 +1653,21 @@ public:
         if (GetVendorMode() == MODE_DISABLED)
             return false;
 
+        // ---------------------------------------------------------------
+        // WoW 3.3.5a gossip protocol note:
+        //
+        // For hasTextBox = true gossip items (Modes 2/3 code-entry items),
+        // OnGossipSelect is NEVER called.  Only OnGossipSelectCode fires
+        // when the player submits the text entry.  The confirmation popup
+        // and text box are handled entirely client-side.
+        //
+        // OnGossipSelect IS called for hasTextBox = false items:
+        //   - Mode 1 items (free delivery confirmation)
+        //   - "[Already Redeemed]" items (added without text box in all modes)
+        //
+        // The server MUST respond to these clicks or the gossip window freezes.
+        // ---------------------------------------------------------------
+
         ClearGossipMenuFor(player);
 
         if (sender == SENDER_MAIN)
@@ -2552,6 +2586,194 @@ public:
 };
 
 // ============================================================
+// ============================================================
+//
+//  n p c _ t y r a e l s _ v e n d o r
+//  Handles Edward Cairn (Horde, Undercity, entry 29095) and
+//  Ian Drake (Alliance, Stormwind, entry 29093).
+//
+//  These vendors exist exclusively to distribute Tyrael's Hilt,
+//  the reward granted at the 2008 Worldwide Invitational in Paris.
+//
+// ============================================================
+// ============================================================
+class npc_tyraels_vendor : public CreatureScript
+{
+public:
+    npc_tyraels_vendor() : CreatureScript("npc_tyraels_vendor") {}
+
+    bool OnGossipHello(Player* player, Creature* creature) override
+    {
+        ClearGossipMenuFor(player);
+
+        if (player->IsGameMaster())
+        {
+            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
+                "[GM] " + TYRAELS_CATALOG[0].displayName,
+                GOSSIP_SENDER_MAIN, 1,
+                "Enter character name to deliver \"" +
+                TYRAELS_CATALOG[0].displayName + "\" to:",
+                0, true);
+            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
+                "[GM] Clear character redemption flags",
+                SENDER_GM_CLEAR, 0,
+                "Enter character name to clear all TCG redemption flags:",
+                0, true);
+            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
+                "[GM] Send code: " + TYRAELS_CATALOG[0].displayName,
+                SENDER_GM_SEND_CODE, 1,
+                "Enter character name to send a code for \"" +
+                TYRAELS_CATALOG[0].displayName + "\" to:",
+                0, true);
+            SendGossipMenuFor(player, NPC_TEXT_WWI, creature->GetGUID());
+            return true;
+        }
+
+        int mode = GetVendorMode();
+
+        if (mode == MODE_DISABLED)
+            return false;
+
+        uint32 playerGuid = player->GetGUID().GetCounter();
+        uint32 redeemKey  = TYRAELS_CATALOG[0].entries[0];
+        std::string label = BuildItemLabel(TYRAELS_CATALOG[0].displayName,
+                                           redeemKey, false, playerGuid);
+
+        if (HasRedeemed(playerGuid, redeemKey))
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, label,
+                GOSSIP_SENDER_MAIN, 1);
+        else if (mode == MODE_BLIZZLIKE || mode == MODE_ITEM_CODE)
+            AddGossipItemFor(player, GOSSIP_ICON_VENDOR, label,
+                GOSSIP_SENDER_MAIN, 1,
+                "Enter your redemption code for \"" +
+                TYRAELS_CATALOG[0].displayName + "\":",
+                0, true);
+        else
+            AddGossipItemFor(player, GOSSIP_ICON_VENDOR, label,
+                GOSSIP_SENDER_MAIN, 1,
+                "Receive \"" + TYRAELS_CATALOG[0].displayName + "\"?",
+                0, false);
+
+        // The WoW 3.3.5a client skips rendering the gossip window when there
+        // is exactly one item with hasTextBox = true and jumps straight to the
+        // text dialog.  A second item forces the menu to render so the NPC
+        // greeting text is visible before the player commits to redeeming.
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Never mind.",
+            GOSSIP_SENDER_MAIN, 0);
+
+        SendGossipMenuFor(player, NPC_TEXT_WWI, creature->GetGUID());
+        return true;
+    }
+
+    bool OnGossipSelectCode(Player* player, Creature* creature,
+                            uint32 sender, uint32 action,
+                            const char* code) override
+    {
+        std::string codeStr(code ? code : "");
+
+        if (sender == SENDER_GM_CLEAR)
+        {
+            HandleGMClearFlags(player, creature, codeStr);
+            OnGossipHello(player, creature);
+            return true;
+        }
+
+        // GM force-delivery override.
+        if (sender == SENDER_GM_FORCE)
+        {
+            HandleGMDelivery(player, creature, codeStr,
+                             TYRAELS_CATALOG[0].entries,
+                             TYRAELS_CATALOG[0].factionMount,
+                             TYRAELS_CATALOG[0].isConsumable,
+                             TYRAELS_CATALOG[0].displayName,
+                             true /* forceOverride */);
+            OnGossipHello(player, creature);
+            return true;
+        }
+
+        // GM send-code path.
+        if (sender == SENDER_GM_SEND_CODE)
+        {
+            HandleGMSendCode(player, creature, codeStr,
+                TYRAELS_CATALOG[0].displayName,
+                TYRAELS_CATALOG[0].rewardGroupKey,
+                TYRAELS_CATALOG[0].entries[0]);
+            OnGossipHello(player, creature);
+            return true;
+        }
+
+        // GM direct delivery.
+        if (player->IsGameMaster())
+        {
+            bool delivered = HandleGMDelivery(player, creature, codeStr,
+                                              TYRAELS_CATALOG[0].entries,
+                                              TYRAELS_CATALOG[0].factionMount,
+                                              TYRAELS_CATALOG[0].isConsumable,
+                                              TYRAELS_CATALOG[0].displayName,
+                                              false /* forceOverride */);
+            if (!delivered)
+            {
+                ClearGossipMenuFor(player);
+                AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1,
+                    "[GM] Force delivery to \"" + codeStr + "\" anyway",
+                    SENDER_GM_FORCE, 1,
+                    "\"" + codeStr + "\" already has \"" +
+                    TYRAELS_CATALOG[0].displayName +
+                    "\". Enter their name again to confirm forced re-delivery:",
+                    0, true);
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                    "< Cancel", SENDER_MAIN, 0);
+                SendGossipMenuFor(player, NPC_TEXT_WWI, creature->GetGUID());
+            }
+            else
+            {
+                OnGossipHello(player, creature);
+            }
+            return true;
+        }
+
+        // Mode 2 (Blizzlike): any valid unused code accepted.
+        if (GetVendorMode() == MODE_BLIZZLIKE)
+        {
+            HandleCodeRedemption(player, creature, codeStr);
+            CloseGossipMenuFor(player);
+            return true;
+        }
+
+        // Mode 3: code must match Tyrael's Hilt specifically.
+        if (GetVendorMode() == MODE_ITEM_CODE)
+        {
+            HandleItemSpecificCodeRedemption(
+                player, creature, codeStr,
+                TYRAELS_CATALOG[0].rewardGroupKey,
+                TYRAELS_CATALOG[0].displayName);
+            OnGossipHello(player, creature);
+            return true;
+        }
+
+        return false;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature,
+                        uint32 /*sender*/, uint32 action) override
+    {
+        ClearGossipMenuFor(player);
+
+        if (action == 0)
+        {
+            // "Never mind." — just close.
+            CloseGossipMenuFor(player);
+            return true;
+        }
+
+        // action == 1: Mode 1 (free) confirmation click — deliver directly.
+        HandleBrowseSelect(player, creature, 1, TYRAELS_CATALOG);
+        OnGossipHello(player, creature);
+        return true;
+    }
+};
+
+// ============================================================
 //  Script registration
 // ============================================================
 void Addmod_tcg_vendorsScripts()
@@ -2559,6 +2781,7 @@ void Addmod_tcg_vendorsScripts()
     new npc_landro_longshot();
     new npc_blizzcon_vendor();
     new npc_promo_vendor();
+    new npc_tyraels_vendor();
     new tcg_boss_drop_script();
     new tcg_boss_drop_player_script();
     new tcg_boss_drop_world_script();

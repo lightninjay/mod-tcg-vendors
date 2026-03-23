@@ -3,7 +3,7 @@
   <H1><b>TCG Vendors</b></H1><H3>Author: lightninjay<br>with the help of Claude.ai</H3><br>
 
 An [AzerothCore](https://www.azerothcore.org/) module that implements fully functional item
-redemption<br> for five World of Warcraft promotional item NPCs present in the 3.3.5a client,
+redemption<br> for seven World of Warcraft promotional item NPCs present in the 3.3.5a client,
 plus an optional boss drop system that generates unique TCG promotional codes on configurable
 boss kills and delivers them to players as readable in-game stationery.
 
@@ -14,6 +14,8 @@ boss kills and delivers them to players as readable in-game stationery.
 | **Zas'Tysh** | Orgrimmar — Valley of Heroes | Blizzcon promotional items |
 | **Garel Redrock** | Ironforge — The Forlorn Cavern | Murloc companions & additional promotional items |
 | **Tharl Stonebleeder** | Orgrimmar — Valley of Heroes | Murloc companions & additional promotional items |
+| **Edward Cairn** | Undercity | Tyrael's Hilt (Worldwide Invitational) |
+| **Ian Drake** | Stormwind | Tyrael's Hilt (Worldwide Invitational) |
 
 Landro Longshot, Ransin Donner, and Zas'Tysh exist in the default AzerothCore database as
 stubs with no item delivery logic. Garel Redrock and Tharl Stonebleeder are their counterpart
@@ -33,8 +35,11 @@ automated boss drop system.
 
 - **Four configurable operation modes** covering every server style, from fully free to
   retail-authentic code redemption.
-- **74 reward items** spanning all 13 TCG expansion sets, three Blizzcon promotional items,
-  and the full Garel/Tharl promotional catalogue.
+- **72 redeemable rewards** across all 13 TCG expansion sets, three Blizzcon promotional
+  items, the full Garel/Tharl promotional catalogue, and Tyrael's Hilt via the dedicated
+  Worldwide Invitational vendors. Three of these rewards (Spectral Tiger, X-51
+  Nether-Rocket, Scourgewar Mini-Mount) deliver two item entries each, for 75 unique
+  item entry IDs handled in total.
 - **Multi-item set support** — Spectral Tiger and X-51 Nether-Rocket each award both mount
   variants in a single redemption.
 - **Faction-aware delivery** — the Scourgewar Mini-Mount awards the Horde or Alliance variant
@@ -210,6 +215,19 @@ Set via `TCGVendors.Mode` in `mod-tcg-vendors.conf`.
 
 </details>
 
+<details>
+<summary><strong>Worldwide Invitational — Edward Cairn (Undercity) / Ian Drake (Stormwind)</strong></summary>
+
+| Item | Entry | Type | Notes |
+|------|-------|------|-------|
+| Tyrael's Hilt | 39656 | Unique | 2008 Worldwide Invitational, Paris |
+
+> **Edward Cairn and Ian Drake** are the only vendors who handle Tyrael's Hilt.
+> The item has been removed from the general Garel/Tharl promotional catalogue.
+> Both vendors support all four operation modes and the full GM toolset.
+
+</details>
+
 ---
 
 ## Requirements
@@ -266,6 +284,9 @@ The SQL does not modify any item templates or other existing world data beyond t
 > **Load order:** The file is prefixed `zzz_` so that the DB auto-updater applies it after
 > all other module SQL patches, preventing other modules from inadvertently overwriting these
 > creature or NPC text entries.
+
+> The world SQL also sets `ScriptName` and the gossip flag on Edward Cairn (29095)
+> and Ian Drake (29093), and adds their NPC greeting text (ID 90004).
 
 > **Database names:** The commands above use the standard AzerothCore database names
 > (`acore_characters`, `acore_world`). Substitute your own database names if they differ.
@@ -631,11 +652,29 @@ for either target.
 - `#include "Group.h"` and `#include "LootMgr.h"` added.
 
 ### v1.2 — GM Send Item Code
-
 - `BuildGMCodeText`, `HandleGMSendCode`, `ShowExpansionListForCode`,
   `ShowExpansionItemsForCode`, `ShowPromoCategoryListForCode`, and `ShowPromoItemsForCode` 
   added to handle generating the custom text for the Stationery item, and the
   new menu option to allow GM's in GM mode to send an item code to a player.
+
+### v1.3 — Worldwide Invitational vendors (Edward Cairn & Ian Drake)
+
+- `NPC_EDWARD_CAIRN = 29095` (Horde, Undercity) and `NPC_IAN_DRAKE = 29093`
+  (Alliance, Stormwind) added to `TCGNPCEntries`.
+- `NPC_TEXT_WWI = 90004` added to `TCGNpcTextIds` with Worldwide Invitational
+  flavour text referencing the 2008 Paris event.
+- `TYRAELS_CATALOG` — new single-item catalog containing only Tyrael's Hilt.
+- Tyrael's Hilt removed from `PROMO_CATALOG` `SENDER_PROMO_CLASSIC` section;
+  the `PROMO_TYRAELS_HILT` entry in `REWARD_GROUPS` is unchanged so existing
+  codes remain valid.
+- `npc_tyraels_vendor` — new `CreatureScript` handling both NPCs, with full
+  Mode 0–3 support, GM deliver, GM send-code, force-delivery override, and
+  redemption flag clear — consistent with all other vendor classes.
+- `generate_codes.py` updated: Tyrael's Hilt moved from the
+  "Classic & Special Promotions" group to a new "Worldwide Invitational" group.
+- `zzz_tcg_vendors_setup.sql` updated: `npc_text` 90004, `ScriptName` and
+  `npcflag` updates for entries 29095 and 29093.
+  
 ---
 
 ## Credits

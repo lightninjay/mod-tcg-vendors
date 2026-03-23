@@ -140,7 +140,6 @@ EXPANSIONS = [
         ("PROMO_DIABLO_STONE",      "Diablo Stone"),
         ("PROMO_NETHERWHELP",       "Netherwhelp's Collar"),
         ("PROMO_FROSTYS_COLLAR",    "Frosty's Collar"),
-        ("PROMO_TYRAELS_HILT",      "Tyrael's Hilt"),
         ("PROMO_WARBOT_KEY",        "Warbot Ignition Key"),
         # Red/Blue War Fuel are freely redeemable in-game with no code required.
         # Do not generate codes for them.
@@ -151,6 +150,9 @@ EXPANSIONS = [
         ("PROMO_GRYPHON_HATCHLING", "Gryphon Hatchling"),
         ("PROMO_WIND_RIDER_CUB",    "Wind Rider Cub"),
         ("PROMO_PANDAREN_MONK",     "Pandaren Monk"),
+    ]),
+    ("Worldwide Invitational", [
+        ("PROMO_TYRAELS_HILT",      "Tyrael's Hilt"),
     ]),
     ("Special Events & Tournaments", [
         ("PROMO_LIL_PHYLACTERY",    "Lil' Phylactery"),
