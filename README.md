@@ -19,7 +19,7 @@ boss kills and delivers them to players as readable in-game stationery.
 
 Landro Longshot, Ransin Donner, and Zas'Tysh exist in the default AzerothCore database as
 stubs with no item delivery logic. Garel Redrock and Tharl Stonebleeder are their counterpart
-NPCs Ian Drake and Edward Cairn, in Stormwind and Undercity respectively, are solely responsible for the vending
+NPCs, while Ian Drake and Edward Cairn, in Stormwind and Undercity respectively, are solely responsible for the vending
  of Tyrael's hilt, a Blizzard WorldWide Invitational item. This module brings all seven NPCs to life with configurable
 redemption modes, correct item entry IDs, a full GM delivery and management toolset, as well as an
 automated boss drop system.
@@ -180,7 +180,6 @@ Set via `TCGVendors.Mode` in `mod-tcg-vendors.conf`.
 | Diablo Stone | 13584 | Unique | WoW Collector's Edition |
 | Netherwhelp's Collar | 25535 | Unique | TBC Collector's Edition |
 | Frosty's Collar | 39286 | Unique | WotLK Collector's Edition |
-| Tyrael's Hilt | 39656 | Unique | Blizzard promotional |
 | Warbot Ignition Key | 46767 | Unique | Mountain Dew Promotion |
 | Red War Fuel | 46766 | Consumable | Requires Warbot companion (spell 65682) |
 | Blue War Fuel | 46765 | Consumable | Requires Warbot companion (spell 65682) |
@@ -223,8 +222,6 @@ Set via `TCGVendors.Mode` in `mod-tcg-vendors.conf`.
 | Tyrael's Hilt | 39656 | Unique | 2008 Worldwide Invitational, Paris |
 
 > **Edward Cairn and Ian Drake** are the only vendors who handle Tyrael's Hilt.
-> The item has been removed from the general Garel/Tharl promotional catalogue.
-> Both vendors support all four operation modes and the full GM toolset.
 
 </details>
 
@@ -276,10 +273,10 @@ mysql -u root -p acore_world < sql/world/base/zzz_tcg_vendors_setup.sql
 
 The world SQL handles the following automatically — no manual in-game steps required:
 - Spawns **Garel Redrock** in The Forlorn Cavern next to Ransin Donner
-- Spawns **Edward Cairn** in The Undercity
-- Spawns **Ian Drake** in Stormwind
 - Spawns a **Gurky** companion murloc next to Garel, mirroring Tharl and Gurky in Orgrimmar
 - Repositions **Murky** in Ironforge to stand next to Ransin Donner in the correct orientation
+- Spawns **Edward Cairn** in The Undercity
+- Spawns **Ian Drake** in Stormwind
 
 The SQL does not modify any item templates or other existing world data beyond these NPC rows.
 
