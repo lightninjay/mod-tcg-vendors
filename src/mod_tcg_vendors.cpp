@@ -633,6 +633,20 @@ static void MarkRedeemed(uint32 guid, uint32 itemEntry)
         guid, itemEntry);
 }
 
+
+    uint32 GetPromoStackSize(uint32 itemEntry)
+    {
+        switch (itemEntry)
+        {
+            case 46766: // Red War Fuel
+            case 46765: // Blue War Fuel
+                return 5;
+
+            default:
+                return 1;
+        }
+    }
+
 // Resolve which items to physically hand to the player, handling
 // the faction-mount split.
 static std::vector<uint32> ResolveItems(Player* player,
@@ -652,7 +666,7 @@ static std::vector<uint32> ResolveItems(Player* player,
 static bool TryAddItemToBags(Player* player, uint32 entry)
 {
     ItemPosCountVec dest;
-    return player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, entry, 1) == EQUIP_ERR_OK;
+    return player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, entry, GetPromoStackSize(entry)) == EQUIP_ERR_OK;
 }
 
 // Mail a list of items to the player as a fallback when bags are full.
@@ -667,7 +681,7 @@ static void MailItemsToPlayer(Player* player, Creature* creature,
 
     for (uint32 entry : entries)
     {
-        Item* item = Item::CreateItem(entry, 1, player);
+        Item* item = Item::CreateItem(entry, GetPromoStackSize(entry), player);
         if (!item)
         {
             LOG_ERROR("module",
@@ -745,7 +759,7 @@ static DeliveryResult TryDeliverItem(Player*                    player,
 
     // Bags have room — deliver directly.
     for (uint32 entry : toGive)
-        player->AddItem(entry, 1);
+        player->AddItem(entry, GetPromoStackSize(entry));
 
     if (!consumable)
         MarkRedeemed(player->GetGUID().GetCounter(), redemptionKey);
@@ -1185,7 +1199,7 @@ static bool HandleGMDelivery(Player*                    gm,
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
     for (uint32 entry : toGive)
     {
-        Item* item = Item::CreateItem(entry, 1, targetPlayer);
+        Item* item = Item::CreateItem(entry, GetPromoStackSize(entry), targetPlayer);
         if (!item)
         {
             LOG_ERROR("module",
@@ -2666,7 +2680,7 @@ public:
     }
 
     bool OnGossipSelectCode(Player* player, Creature* creature,
-                            uint32 sender, uint32 action,
+                            uint32 sender, uint32 __attribute__((unused)) action,
                             const char* code) override
     {
         std::string codeStr(code ? code : "");
