@@ -260,23 +260,25 @@ azerothcore-wotlk/
 **Characters database** — creates the two tables this module uses:
 
 ```bash
-mysql -u root -p acore_characters < sql/characters/base/create_tcg_redeemed_table.sql
-mysql -u root -p acore_characters < sql/characters/base/create_tcg_codes_table.sql
+mysql -u root -p acore_characters < data/sql/characters/base/create_tcg_redeemed_table.sql
+mysql -u root -p acore_characters < data/sql/characters/base/create_tcg_codes_table.sql
 ```
 
 **World database** — sets `ScriptName` on the seven NPC entries, adds NPC greeting texts,
 ensures the gossip flag is set on each NPC, and handles all creature spawns:
 
 ```bash
-mysql -u root -p acore_world < sql/world/base/zzz_tcg_vendors_setup.sql
+mysql -u root -p acore_world < data/sql/world/base/zzz_tcg_vendors_setup.sql
+mysql -u root -p acore_world < data/sql/world/base/Update_Warbot_Fuel.sql
 ```
 
-The world SQL handles the following automatically — no manual in-game steps required:
+The world SQL files handle the following automatically — no manual in-game steps required:
 - Spawns **Garel Redrock** in The Forlorn Cavern next to Ransin Donner
 - Spawns a **Gurky** companion murloc next to Garel, mirroring Tharl and Gurky in Orgrimmar
 - Repositions **Murky** in Ironforge to stand next to Ransin Donner in the correct orientation
 - Spawns **Edward Cairn** in The Undercity
 - Spawns **Ian Drake** in Stormwind
+- Fixes the Warbot companion and how it interacts with Red and Blue Fuel
 
 The SQL does not modify any item templates or other existing world data beyond these NPC rows.
 
