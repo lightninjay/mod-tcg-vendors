@@ -2482,19 +2482,19 @@ public:
         if (!GetBossDropEnabled() || !player || !item)
             return;
 
-        if (item->GetEntry() != 9311)
-            return;
-
         if (!lootGuid.IsCreature())
             return;
-
+ 
         Creature* source = ObjectAccessor::GetCreature(*player, lootGuid);
         if (!source)
             return;
-
+ 
         uint32 creatureEntry = source->GetEntry();
-        auto it = s_pendingBossDrops.find(creatureEntry);
-        if (it == s_pendingBossDrops.end())
+        auto bossIds = GetBossDropCreatureIds();
+        if (std::find(bossIds.begin(), bossIds.end(), creatureEntry) == bossIds.end())
+            return;
+
+        if (item->GetEntry() != 9311)
             return;
 
         const PendingBossDrop& drop = it->second;
