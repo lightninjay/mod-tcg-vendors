@@ -2481,7 +2481,7 @@ public:
     {
         if (!GetBossDropEnabled() || !player || !item)
             return;
-
+ 
         if (!lootGuid.IsCreature())
             return;
  
@@ -2496,9 +2496,13 @@ public:
 
         if (item->GetEntry() != 9311)
             return;
-
+ 
+        auto it = s_pendingBossDrops.find(creatureEntry);
+        if (it == s_pendingBossDrops.end())
+            return;
+ 
         const PendingBossDrop& drop = it->second;
-
+ 
         // Generate a unique code for this specific looting player.
         std::string code = GenerateRandomCode();
         InsertCodeToDatabase(code, drop.rewardGroup);
