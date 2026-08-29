@@ -243,7 +243,7 @@ TCGVendors.BossDrop.ItemIds =
 #        startup for all entries in BossDrop.CreatureIds.
 #        Requires manual CreatureIds list.
 #
-#    1 - Mail only (recommended for auto-detect mode)
+#    1 - Mail only (default, recommended for auto-detect mode)
 #        Every qualifying group/raid member present on the same map receives
 #        a stationery item in their mailbox, each containing a unique code.
 #        No loot template rows are inserted — the stationery does NOT appear
@@ -256,9 +256,9 @@ TCGVendors.BossDrop.ItemIds =
 #        corpse as a loot-window drop. Both paths are active simultaneously.
 #        Requires manual CreatureIds list.
 #
-#    Default: 0
+#    Default: 1
 #
-TCGVendors.BossDrop.MailParticipants = 0
+TCGVendors.BossDrop.MailParticipants = 1
 
 ###############################################################################
 #  TCGVendors.BossDrop.DropChance
@@ -274,11 +274,12 @@ TCGVendors.BossDrop.MailParticipants = 0
 #
 #    Value range: 0.01 to 100.0
 #    - 100.0 = guaranteed drop (every kill)
-#    - 15.0 = 15% chance (somewhat low - recommended for party-wide drops)
-#    - 10.0 = 10% chance
-#    - 5.0 = 5% chance (rare)
-#    - 1.0 = 1% chance (very rare)
+#    - 20.0 = 20% chance (~5 kills average)
+#    - 15.0 = 15% chance (~7 kills average)
+#    - 10.0 = 10% chance (~10 kills average)
+#    - 5.0 = 5% chance (~20 kills average, balanced rarity)
+#    - 1.0 = 1% chance (~100 kills average, very rare)
 #
-#    Default: 100.0
+#    Default: 5.0 (5% drop rate)
 #
-TCGVendors.BossDrop.DropChance = 100.0
+TCGVendors.BossDrop.DropChance = 5.0

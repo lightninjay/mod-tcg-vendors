@@ -2341,13 +2341,13 @@ static std::vector<uint32> GetBossDropItemIds()
 //   2 — mail AND loot (stationery on corpse + mail to every participant)
 static int GetBossDropMailMode()
 {
-    int mode = sConfigMgr->GetOption<int>("TCGVendors.BossDrop.MailParticipants", 0);
+    int mode = sConfigMgr->GetOption<int>("TCGVendors.BossDrop.MailParticipants", 1);
     if (mode < 0 || mode > 2)
     {
         LOG_WARN("module",
             "mod-tcg-vendors: TCGVendors.BossDrop.MailParticipants has unrecognised value {} "
-            "— falling back to 0 (disabled).", mode);
-        return 0;
+            "— falling back to 1 (mail to whole party).", mode);
+        return 1;
     }
     return mode;
 }
@@ -2356,13 +2356,13 @@ static int GetBossDropMailMode()
 // Returns the drop chance percentage (0.01 to 100.0)
 static float GetBossDropChance()
 {
-    float chance = sConfigMgr->GetOption<float>("TCGVendors.BossDrop.DropChance", 100.0f);
+    float chance = sConfigMgr->GetOption<float>("TCGVendors.BossDrop.DropChance", 5.0f);
     if (chance < 0.01f || chance > 100.0f)
     {
         LOG_WARN("module",
             "mod-tcg-vendors: TCGVendors.BossDrop.DropChance has invalid value {} "
-            "— falling back to 100.0 (guaranteed drop).", chance);
-        return 100.0f;
+            "— falling back to 5.0 (5%% drop rate).", chance);
+        return 5.0f;
     }
     return chance;
 }
