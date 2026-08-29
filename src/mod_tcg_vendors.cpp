@@ -2352,6 +2352,21 @@ static int GetBossDropMailMode()
     return mode;
 }
 
+// TCGVendors.BossDrop.DropChance
+// Returns the drop chance percentage (0.01 to 100.0)
+static float GetBossDropChance()
+{
+    float chance = sConfigMgr->GetOption<float>("TCGVendors.BossDrop.DropChance", 100.0f);
+    if (chance < 0.01f || chance > 100.0f)
+    {
+        LOG_WARN("module",
+            "mod-tcg-vendors: TCGVendors.BossDrop.DropChance has invalid value {} "
+            "— falling back to 100.0 (guaranteed drop).", chance);
+        return 100.0f;
+    }
+    return chance;
+}
+
 // ============================================================
 //  Boss Drop State
 //
@@ -2392,15 +2407,22 @@ public:
         if (!GetBossDropEnabled() || !killer || !killed)
             return;
 
-        uint32 creatureEntry = killed->GetEntry();
-        auto bossIds = GetBossDropCreatureIds();
-        if (std::find(bossIds.begin(), bossIds.end(), creatureEntry) == bossIds.end())
+        // Check if this is a dungeon/raid boss or world boss
+        // This covers all instance bosses and world bosses automatically
+        if (!killed->IsDungeonBoss() && !killed->isWorldBoss())
             return;
 
         auto itemIds = GetBossDropItemIds();
         if (itemIds.empty())
             return;
 
+        // Roll for drop chance - applies to all delivery modes
+        float dropChance = GetBossDropChance();
+        float roll = frand(0.0f, 100.0f);
+        if (roll > dropChance)
+            return;  // Drop didn't proc this time
+
+        uint32 creatureEntry = killed->GetEntry();
         uint32 itemId = itemIds[urand(0, static_cast<uint32>(itemIds.size()) - 1)];
         std::string rewardGroup = GetRewardGroupForItem(itemId);
         if (rewardGroup.empty())
@@ -2490,9 +2512,20 @@ public:
             return;
  
         uint32 creatureEntry = source->GetEntry();
+        
+        // Check if this creature is in our boss list (if using manual list mode)
         auto bossIds = GetBossDropCreatureIds();
-        if (std::find(bossIds.begin(), bossIds.end(), creatureEntry) == bossIds.end())
-            return;
+        if (!bossIds.empty())
+        {
+            if (std::find(bossIds.begin(), bossIds.end(), creatureEntry) == bossIds.end())
+                return;
+        }
+        else
+        {
+            // Auto-detect mode: verify this is actually a boss
+            if (!source->IsDungeonBoss() && !source->isWorldBoss())
+                return;
+        }
 
         if (item->GetEntry() != 9311)
             return;
@@ -2530,7 +2563,7 @@ public:
 //
 //  On server startup, ensures every boss entry configured in
 //  TCGVendors.BossDrop.CreatureIds has a creature_loot_template
-//  row guaranteeing a 100% drop of item 9311 (Simple Stationery).
+//  row for item 9311 (Simple Stationery) at the configured drop chance.
 //
 //  If any new rows are written, the creature loot tables are
 //  reloaded in-process — no manual .reload or restart required.
@@ -2564,35 +2597,54 @@ public:
         int mailMode = GetBossDropMailMode();
         auto bossIds = GetBossDropCreatureIds();
 
-        // MailParticipants = 1 (mail only): no loot rows needed — stationery
-        // is mailed directly to participants, never appears on the corpse.
-        // Also skip loot rows if CreatureIds is empty regardless of mail mode.
-        if (mailMode == 1 || bossIds.empty())
+        // Auto-detect mode (empty CreatureIds list)
+        if (bossIds.empty())
         {
             LoadLootTemplates_Creature();
             LootTemplates_Creature.CheckLootRefs();
-            if (mailMode == 1)
-                LOG_INFO("module",
-                    "mod-tcg-vendors: BossDrop MailParticipants=1 (mail only). "
-                    "No loot template rows inserted.");
+            
+            if (mailMode == 0 || mailMode == 2)
+            {
+                LOG_WARN("module",
+                    "mod-tcg-vendors: BossDrop enabled with auto-detect mode (empty CreatureIds). "
+                    "Loot window delivery (MailParticipants=0 or 2) requires a manual CreatureIds list. "
+                    "Only mail delivery (MailParticipants=1) is supported in auto-detect mode.");
+            }
             else
+            {
                 LOG_INFO("module",
-                    "mod-tcg-vendors: BossDrop enabled but CreatureIds is empty. "
-                    "All stationery loot rows purged.");
+                    "mod-tcg-vendors: BossDrop enabled in auto-detect mode. "
+                    "All dungeon and raid bosses will drop TCG codes via mail to party members.");
+            }
+            return;
+        }
+
+        // Manual list mode with CreatureIds specified
+        // MailParticipants = 1 (mail only): no loot rows needed — stationery
+        // is mailed directly to participants, never appears on the corpse.
+        if (mailMode == 1)
+        {
+            LoadLootTemplates_Creature();
+            LootTemplates_Creature.CheckLootRefs();
+            LOG_INFO("module",
+                "mod-tcg-vendors: BossDrop MailParticipants=1 (mail only). "
+                "No loot template rows inserted.");
             return;
         }
 
         // MailParticipants = 0 or 2: stationery appears on the corpse.
-        // Insert one row per configured boss at 100% drop chance.
+        // Insert one row per configured boss at the configured drop chance.
+        float dropChance = GetBossDropChance();
         for (uint32 bossEntry : bossIds)
         {
             WorldDatabase.Execute(
                 "INSERT INTO creature_loot_template "
                 "(Entry, Item, Reference, Chance, QuestRequired, LootMode, GroupId, MinCount, MaxCount, Comment) "
-                "VALUES ({}, 9311, 0, 100, 0, 1, 0, 1, 1, 'TCG code scroll — mod-tcg-vendors')",
-                bossEntry);
+                "VALUES ({}, 9311, 0, {}, 0, 1, 0, 1, 1, 'TCG code scroll — mod-tcg-vendors')",
+                bossEntry, dropChance);
             LOG_INFO("module",
-                "mod-tcg-vendors: Registered stationery drop for boss entry {}.", bossEntry);
+                "mod-tcg-vendors: Registered stationery drop for boss entry {} at {}% chance.",
+                bossEntry, dropChance);
         }
 
         LoadLootTemplates_Creature();

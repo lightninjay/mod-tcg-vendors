@@ -103,15 +103,22 @@ TCGVendors.LandroBoxesMultiRedeem = 0
 #  B O S S   D R O P   S E T T I N G S
 #
 #  The boss drop system automatically generates a unique TCG promotional
-#  code on each configured boss kill, writes it to account_tcg_codes as
-#  unredeemed, and makes it available to players through one or both of the
-#  two delivery methods described below.
+#  code when configured bosses are killed, writes it to account_tcg_codes 
+#  as unredeemed, and makes it available to players through one or both of 
+#  the delivery methods described below.
 #
-#  On server startup, the module ensures each configured boss entry has a
-#  creature_loot_template row guaranteeing a 100% drop of Simple Stationery
-#  (item 9311).  If any rows are missing they are inserted automatically and
-#  the creature loot tables are reloaded in-process — no manual .reload or
-#  server restart is required after adding a new boss to CreatureIds.
+#  ** AUTO-DETECT MODE (Recommended) **
+#  Leave CreatureIds empty to automatically detect ALL dungeon and raid
+#  bosses. The system uses IsDungeonBoss() and isWorldBoss() checks to
+#  identify bosses at runtime. This mode only supports mail delivery.
+#
+#  ** MANUAL LIST MODE **
+#  Specify creature IDs in CreatureIds to target specific bosses. Supports
+#  all delivery modes including loot window drops. On startup, the module
+#  ensures each configured boss entry has a creature_loot_template row for
+#  Simple Stationery (item 9311) at the configured drop chance percentage.
+#  Loot tables are automatically rebuilt on every server start — no manual
+#  .reload or restart is required after adding a new boss to CreatureIds.
 #
 #  The stationery item contains the generated code along with flavor text
 #  identifying the boss defeated, the item that can be redeemed, and the
@@ -139,15 +146,29 @@ TCGVendors.BossDrop.Enabled = 0
 #    Comma-separated list of creature_template entry IDs for the bosses
 #    that should trigger a code drop on kill.
 #
+#    ** AUTO-DETECT MODE **
+#    If this setting is left EMPTY, the module will automatically detect
+#    ALL dungeon bosses and raid bosses using the IsDungeonBoss() and
+#    isWorldBoss() checks. This is the recommended mode and eliminates
+#    the need to maintain a large list of boss IDs.
+#
+#    Note: Auto-detect mode ONLY supports mail delivery (MailParticipants=1).
+#    For loot window drops (MailParticipants=0 or 2), you must provide
+#    a manual CreatureIds list.
+#
+#    ** MANUAL LIST MODE **
+#    When creature IDs are specified, only those exact bosses will trigger
+#    drops, and all delivery modes (loot, mail, or both) are supported.
+#
 #    On startup, each entry listed here will automatically receive a
-#    creature_loot_template row for item 9311 at 100% drop chance if one
-#    does not already exist.  The loot tables are then reloaded in-process.
+#    creature_loot_template row for item 9311 at the configured drop chance
+#    percentage if MailParticipants is 0 or 2. The loot tables are then
+#    reloaded in-process.
 #
 #    Removing an entry from this list does NOT delete existing loot template
-#    rows — remove those manually from creature_loot_template if desired.
+#    rows — those are purged and rebuilt on every startup automatically.
 #
-#    The following is a list of all Raid boss ID's, followed by a string of all the ID's for use in the config
-#
+#    Example raid boss IDs (for manual mode):
 #    10184	Onyxia (Level 80)
 #    11502	Ragnaros
 #    11583	Nefarian
@@ -170,17 +191,13 @@ TCGVendors.BossDrop.Enabled = 0
 #    33288	Yogg-Saron
 #    34564	Anub'arak
 #    36597	The Lich King
-#    
-#    -- Individual Progression module variants
 #    301000	Onyxia (Level 60)
 #    351019	Kel'Thuzad (Level 60)
 #    
-#    -- Config string:
-#    10184, 11502, 11583, 14834, 15339, 15690, 15727, 15990, 17257, 17968, 19044, 19622, 21212, 22917, 23863, 24664, 25315, 28860, 29120, 33288, 34564, 36597, 301000, 351019
+#    Manual mode config string example:
+#    TCGVendors.BossDrop.CreatureIds = 10184,11502,11583,14834,15339,15690,15727,15990,17257,17968,19044,19622,21212,22917,23863,24664,25315,28860,29120,33288,34564,36597,301000,351019
 #
-#    Example: TCGVendors.BossDrop.CreatureIds = 11502,15990,36597
-#
-#    Default: (empty — no bosses configured)
+#    Default: (empty — auto-detect mode for all dungeon and raid bosses)
 #
 TCGVendors.BossDrop.CreatureIds =
 
@@ -192,13 +209,20 @@ TCGVendors.BossDrop.CreatureIds =
 #    generated stationery code will be redeemable for that item.
 #
 #    All entries must exist in the module's REWARD_GROUPS catalog — i.e. they
-#    must be valid items redeemable at one of the five vendor NPCs.  Any item
+#    must be valid items redeemable at one of the TCG vendor NPCs. Any item
 #    not found in any catalog will log a warning at the time of the kill and
 #    the drop will be skipped for that kill.
 #
-#    Example (ALL TCG ITEM IDs): TCGVendors.BossDrop.ItemIds = 23705,23713,23720,32566,32588,32542,33219,33223,33225,34499,34492,34493,35226,35223,35227,38233,38301,38050,38577,38578,38576,45047,45037,45063,46779,46780,46778,49287,49343,54218,54212,54069,54455,54452,54068,23709,23714,23716,38310,38312,38314,38313,38309,38311,50301,20371,33079,43599,22114,20651,22780,46802,45180,13582,13583,13584,25535,39286,39656,46767,48527,49646,49662,49663,49665,49693,54847,56806,49362
+#    This setting is REQUIRED when BossDrop is enabled. If empty, boss kills
+#    will be detected but no codes will be generated.
 #
-#    Default: (empty — boss drop produces nothing without at least one item)
+#    Example (a few popular items):
+#    TCGVendors.BossDrop.ItemIds = 23720,33224,38576,46778,54069
+#
+#    Example (ALL TCG items):
+#    TCGVendors.BossDrop.ItemIds = 23705,23713,23720,32566,32588,32542,33219,33223,33225,34499,34492,34493,35226,35223,35227,38233,38301,38050,38577,38578,38576,45047,45037,45063,46779,46780,46778,49287,49343,54218,54212,54069,54455,54452,54068,23709,23714,23716,38310,38312,38314,38313,38309,38311,50301,20371,33079,43599,22114,20651,22780,46802,45180,13582,13583,13584,25535,39286,39656,46767,48527,49646,49662,49663,49665,49693,54847,56806,49362
+#
+#    Default: (empty — boss drops enabled but no items configured)
 #
 TCGVendors.BossDrop.ItemIds =
 
@@ -208,24 +232,53 @@ TCGVendors.BossDrop.ItemIds =
 #    Controls whether group/raid participants receive a unique stationery item
 #    via in-game mail, and whether the loot-window drop on the corpse is active.
 #
-#    0 - Disabled  (default)
-#        No mail is sent.  A single stationery item appears on the boss corpse
-#        via the loot template (claimed by whoever loots it first, or distributed
-#        by master looter).  Loot template rows for item 9311 are inserted on
-#        startup for all entries in BossDrop.CreatureIds.
+#    ** IMPORTANT: Auto-detect mode (empty CreatureIds) ONLY supports mode 1 **
+#    Loot window delivery requires pre-populated loot tables, which need a
+#    manual CreatureIds list. If using auto-detect, set this to 1.
 #
-#    1 - Mail only
+#    0 - Loot window only
+#        No mail is sent. A single stationery item appears on the boss corpse
+#        via the loot template (claimed by whoever loots it first, or distributed
+#        by master looter). Loot template rows for item 9311 are inserted on
+#        startup for all entries in BossDrop.CreatureIds.
+#        Requires manual CreatureIds list.
+#
+#    1 - Mail only (recommended for auto-detect mode)
 #        Every qualifying group/raid member present on the same map receives
 #        a stationery item in their mailbox, each containing a unique code.
 #        No loot template rows are inserted — the stationery does NOT appear
-#        on the boss corpse.  Existing 9311 rows are purged on startup.
-#        Solo players (no group) receive mail to themselves.
+#        on the boss corpse. Solo players (no group) receive mail to themselves.
+#        Works with both manual CreatureIds list and auto-detect mode.
 #
 #    2 - Mail AND loot
 #        Every qualifying participant receives a mailed stationery with their
 #        own unique code, AND a single stationery item appears on the boss
-#        corpse as a loot-window drop.  Both paths are active simultaneously.
+#        corpse as a loot-window drop. Both paths are active simultaneously.
+#        Requires manual CreatureIds list.
 #
 #    Default: 0
 #
 TCGVendors.BossDrop.MailParticipants = 0
+
+###############################################################################
+#  TCGVendors.BossDrop.DropChance
+#
+#    Drop chance percentage for TCG code generation on boss kills.
+#    This affects ALL delivery modes (loot window, mail, or both).
+#
+#    When a configured boss is killed, the server rolls against this percentage
+#    to determine if a TCG code drop should occur. If the roll succeeds:
+#    - Mail mode: all party/raid members receive mailed stationery
+#    - Loot mode: stationery appears in the boss loot window
+#    - Both modes: both mail and loot delivery occur
+#
+#    Value range: 0.01 to 100.0
+#    - 100.0 = guaranteed drop (every kill)
+#    - 15.0 = 15% chance (somewhat low - recommended for party-wide drops)
+#    - 10.0 = 10% chance
+#    - 5.0 = 5% chance (rare)
+#    - 1.0 = 1% chance (very rare)
+#
+#    Default: 100.0
+#
+TCGVendors.BossDrop.DropChance = 100.0
