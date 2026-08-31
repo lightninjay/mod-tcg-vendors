@@ -15,7 +15,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <iterator>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -2368,6 +2370,106 @@ static float GetBossDropChance()
 }
 
 // ============================================================
+//  Boss identification
+//
+//  IsDungeonBoss() is true only when creature_template.flags_extra carries
+//  CREATURE_FLAG_EXTRA_DUNGEON_BOSS (0x10000), a flag AzerothCore data sets
+//  on a minority of encounters, and isWorldBoss() only covers rank 3.  Most
+//  5-man dungeon bosses satisfy neither, so those two checks alone miss them.
+//
+//  instance_encounters closes the gap: every scripted dungeon and raid
+//  encounter that awards kill credit has a row there keyed by the boss
+//  creature entry.  The set is loaded once at startup.
+// ============================================================
+static std::set<uint32> s_encounterBossEntries;
+
+static void LoadEncounterBossEntries()
+{
+    s_encounterBossEntries.clear();
+
+    // creditType 0 = ENCOUNTER_CREDIT_KILL_CREATURE
+    QueryResult result = WorldDatabase.Query(
+        "SELECT DISTINCT creditEntry FROM instance_encounters "
+        "WHERE creditType = 0 AND creditEntry > 0");
+    if (!result)
+    {
+        LOG_WARN("module",
+            "mod-tcg-vendors: instance_encounters returned no rows — boss auto-detect "
+            "falls back to IsDungeonBoss()/isWorldBoss() only.");
+        return;
+    }
+
+    do
+    {
+        s_encounterBossEntries.insert(result->Fetch()[0].Get<uint32>());
+    } while (result->NextRow());
+
+    LOG_INFO("module",
+        "mod-tcg-vendors: Loaded {} boss creature entries from instance_encounters.",
+        static_cast<uint32>(s_encounterBossEntries.size()));
+}
+
+static bool IsBossCreature(Creature* creature)
+{
+    if (!creature)
+        return false;
+    if (creature->IsDungeonBoss() || creature->isWorldBoss())
+        return true;
+    return s_encounterBossEntries.count(creature->GetEntry()) > 0;
+}
+
+// ============================================================
+//  Reward selection for a boss kill
+//
+//  TCGVendors.BossDrop.ItemIds empty  — the whole REWARD_GROUPS catalog is
+//                                       the pool; every promotional item is
+//                                       eligible.
+//  TCGVendors.BossDrop.ItemIds set    — one listed item is chosen and mapped
+//                                       back to its reward group.
+//
+//  Returns false when no valid reward could be resolved.
+// ============================================================
+static bool PickBossDropReward(std::string& rewardGroup, std::string& itemName, uint32& itemId)
+{
+    auto itemIds = GetBossDropItemIds();
+
+    if (itemIds.empty())
+    {
+        if (REWARD_GROUPS.empty())
+            return false;
+
+        auto it = REWARD_GROUPS.begin();
+        std::advance(it, urand(0, static_cast<uint32>(REWARD_GROUPS.size()) - 1));
+        if (it->second.itemEntries.empty())
+            return false;
+
+        rewardGroup = it->first;
+        itemId      = it->second.itemEntries[0];
+        itemName    = GetItemName(itemId);
+
+        // GetItemName falls back to the numeric id when the item template is
+        // missing; the catalog display name reads better in that case.
+        if (itemName == std::to_string(itemId))
+            itemName = it->second.displayName;
+
+        return true;
+    }
+
+    itemId      = itemIds[urand(0, static_cast<uint32>(itemIds.size()) - 1)];
+    rewardGroup = GetRewardGroupForItem(itemId);
+    if (rewardGroup.empty())
+    {
+        LOG_ERROR("module",
+            "mod-tcg-vendors: BossDrop item {} has no matching reward_group. "
+            "Check TCGVendors.BossDrop.ItemIds and REWARD_GROUPS.", itemId);
+        return false;
+    }
+
+    itemName = GetItemName(itemId);
+    return true;
+}
+
+// ============================================================
 //  Boss Drop State
 //
 //  Keyed by creature entry ID.  Written in OnPlayerCreatureKill,
@@ -2393,6 +2495,10 @@ struct PendingBossDrop
 // Safe: AzerothCore map update loop is single-threaded per map.
 static std::map<uint32, PendingBossDrop> s_pendingBossDrops;
 
+// Corpse GUIDs already rolled for, so a kill credited to several group
+// members still produces exactly one drop roll.
+static std::set<ObjectGuid> s_processedBossKills;
+
 // ============================================================
 //  tcg_boss_drop_script  (PlayerScript)
 //  Uses OnPlayerCreatureKill to detect configured boss kills.
@@ -2407,14 +2513,32 @@ public:
         if (!GetBossDropEnabled() || !killer || !killed)
             return;
 
-        // Check if this is a dungeon/raid boss or world boss
-        // This covers all instance bosses and world bosses automatically
-        if (!killed->IsDungeonBoss() && !killed->isWorldBoss())
+        uint32 creatureEntry = killed->GetEntry();
+
+        // Manual list mode: only the configured entries qualify.
+        // Auto-detect mode (empty list): any dungeon or raid boss qualifies.
+        auto bossIds = GetBossDropCreatureIds();
+        if (!bossIds.empty())
+        {
+            if (std::find(bossIds.begin(), bossIds.end(), creatureEntry) == bossIds.end())
+                return;
+        }
+        else if (!IsBossCreature(killed))
+        {
+            return;
+        }
+
+        // The hook can fire once per credited group member for a single kill.
+        // Dedupe on the corpse GUID so one boss yields one roll and one round
+        // of mail, not one per player.
+        ObjectGuid corpseGuid = killed->GetGUID();
+        if (!s_processedBossKills.insert(corpseGuid).second)
             return;
 
-        auto itemIds = GetBossDropItemIds();
-        if (itemIds.empty())
-            return;
+        // Bound the dedupe set — corpse GUIDs are never reused within a run,
+        // so old entries are dead weight rather than state.
+        if (s_processedBossKills.size() > 4096)
+            s_processedBossKills.clear();
 
         // Roll for drop chance - applies to all delivery modes
         float dropChance = GetBossDropChance();
@@ -2422,28 +2546,26 @@ public:
         if (roll > dropChance)
             return;  // Drop didn't proc this time
 
-        uint32 creatureEntry = killed->GetEntry();
-        uint32 itemId = itemIds[urand(0, static_cast<uint32>(itemIds.size()) - 1)];
-        std::string rewardGroup = GetRewardGroupForItem(itemId);
-        if (rewardGroup.empty())
-        {
-            LOG_ERROR("module",
-                "mod-tcg-vendors: BossDrop item {} has no matching reward_group. "
-                "Check TCGVendors.BossDrop.ItemIds and REWARD_GROUPS.", itemId);
+        std::string rewardGroup;
+        std::string itemName;
+        uint32      itemId = 0;
+        if (!PickBossDropReward(rewardGroup, itemName, itemId))
             return;
-        }
 
         std::string bossName = killed->GetName();
-        std::string itemName = GetItemName(itemId);
+
+        int mailMode = GetBossDropMailMode();
 
         // Park metadata only — code generation happens in OnPlayerLootItem
         // so each looting player gets their own unique code from the corpse.
         // The mail-participants path generates its own codes independently.
-        s_pendingBossDrops[creatureEntry] = { rewardGroup, bossName, itemName, itemId };
+        // Mail-only mode never reads this map, so nothing is stored for it.
+        if (mailMode != 1)
+            s_pendingBossDrops[creatureEntry] = { rewardGroup, bossName, itemName, itemId };
 
         // ---- Optional: mail a unique code to every group/raid member ----
         // Fires for MailParticipants = 1 (mail only) or 2 (mail + loot).
-        if (GetBossDropMailMode() >= 1)
+        if (mailMode >= 1)
         {
             std::vector<Player*> participants;
             if (Group* group = killer->GetGroup())
@@ -2520,11 +2642,10 @@ public:
             if (std::find(bossIds.begin(), bossIds.end(), creatureEntry) == bossIds.end())
                 return;
         }
-        else
+        else if (!IsBossCreature(source))
         {
             // Auto-detect mode: verify this is actually a boss
-            if (!source->IsDungeonBoss() && !source->isWorldBoss())
-                return;
+            return;
         }
 
         if (item->GetEntry() != 9311)
@@ -2555,6 +2676,10 @@ public:
         // without waiting for the next autosave.
         StampItemText(item, player, text);
         DirectWriteItemText(item->GetGUID().GetCounter(), text);
+
+        // One stationery per corpse — the pending entry has served its purpose.
+        // Leaving it would stamp a stale boss/item on the next kill's loot.
+        s_pendingBossDrops.erase(it);
     }
 };
 
@@ -2597,6 +2722,9 @@ public:
         int mailMode = GetBossDropMailMode();
         auto bossIds = GetBossDropCreatureIds();
 
+        // Needed by auto-detect mode; harmless (and cheap) otherwise.
+        LoadEncounterBossEntries();
+
         // Auto-detect mode (empty CreatureIds list)
         if (bossIds.empty())
         {
@@ -2613,8 +2741,9 @@ public:
             else
             {
                 LOG_INFO("module",
-                    "mod-tcg-vendors: BossDrop enabled in auto-detect mode. "
-                    "All dungeon and raid bosses will drop TCG codes via mail to party members.");
+                    "mod-tcg-vendors: BossDrop enabled in auto-detect mode ({} known boss entries, "
+                    "{}% drop chance). Dungeon and raid bosses mail TCG codes to party members.",
+                    static_cast<uint32>(s_encounterBossEntries.size()), GetBossDropChance());
             }
             return;
         }
